@@ -10,6 +10,8 @@ const canvas = document.querySelector("canvas"),
     colorPicker = document.querySelector("#color-picker"),
     clearCanvas = document.querySelector(".clear-canvas"),
     saveImg = document.querySelector(".save-img"),
+    convertImg = document.querySelector(".convert-img"),
+    uploadImg = document.querySelector(".upload-img"),
     ctx = canvas.getContext("2d");
 // global variables with default value
 let prevMouseX, prevMouseY, snapshot,
@@ -23,15 +25,14 @@ const setCanvasBackground = () => {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = selectedColor; // setting fillstyle back to the selectedColor, it'll be the brush color
 }
-window.addEventListener("load", () => {
-    // setting canvas width/height.. offsetwidth/height returns viewable width/height of an element
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    setCanvasBackground();
-});
+
+canvas.width = canvas.offsetWidth;
+canvas.height = canvas.offsetHeight;
+setCanvasBackground();
+
 const drawRect = (e) => {
     // if fillColor isn't checked draw a rect with border else draw rect with background
-    if(!fillColor.checked) {
+    if (!fillColor.checked) {
         // creating circle according to the mouse pointer
         return ctx.strokeRect(e.offsetX, e.offsetY, prevMouseX - e.offsetX, prevMouseY - e.offsetY);
     }
@@ -64,17 +65,17 @@ const startDraw = (e) => {
     snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
 }
 const drawing = (e) => {
-    if(!isDrawing) return; // if isDrawing is false return from here
+    if (!isDrawing) return; // if isDrawing is false return from here
     ctx.putImageData(snapshot, 0, 0); // adding copied canvas data on to this canvas
-    if(selectedTool === "brush" || selectedTool === "eraser") {
+    if (selectedTool === "brush" || selectedTool === "eraser") {
         // if selected tool is eraser then set strokeStyle to white
         // to paint white color on to the existing canvas content else set the stroke color to selected color
         ctx.strokeStyle = selectedTool === "eraser" ? "#fff" : selectedColor;
         ctx.lineTo(e.offsetX, e.offsetY); // creating line according to the mouse pointer
         ctx.stroke(); // drawing/filling line with color
-    } else if(selectedTool === "rectangle"){
+    } else if (selectedTool === "rectangle") {
         drawRect(e);
-    } else if(selectedTool === "circle"){
+    } else if (selectedTool === "circle") {
         drawCircle(e);
     } else {
         drawTriangle(e);
@@ -105,6 +106,7 @@ colorPicker.addEventListener("change", () => {
 });
 clearCanvas.addEventListener("click", () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height); // clearing whole canvas
+    uploadImg.value = '';
     setCanvasBackground();
 });
 saveImg.addEventListener("click", () => {
@@ -112,6 +114,23 @@ saveImg.addEventListener("click", () => {
     link.download = `${Date.now()}.jpg`; // passing current date as link download value
     link.href = canvas.toDataURL(); // passing canvasData as link href value
     link.click(); // clicking link to download image
+});
+convertImg.addEventListener("click", async () => {
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const arrayBuffer = await blob.arrayBuffer();
+    const inputBytes = new Uint8Array(arrayBuffer);
+
+    // const result = grayscale_image(inputBytes); // wasm 함수 호출
+    // const outputBlob = new Blob([result], {type: 'image/png'});
+    // const outputUrl = URL.createObjectURL(outputBlob);
+});
+uploadImg.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    const img = new Image();
+    img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = URL.createObjectURL(file);
 });
 canvas.addEventListener("mousedown", startDraw);
 canvas.addEventListener("mousemove", drawing);
