@@ -116,13 +116,9 @@ saveImg.addEventListener("click", () => {
     link.click(); // clicking link to download image
 });
 convertImg.addEventListener("click", async () => {
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    const arrayBuffer = await blob.arrayBuffer();
-    const inputBytes = new Uint8Array(arrayBuffer);
-    const outputBlob = new Blob([wasm.image_something(inputBytes)], {type: 'image/png'});
-    const img = new Image();
-    img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    img.src = URL.createObjectURL(outputBlob);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    wasm.image_something(imageData.data);
+    ctx.putImageData(imageData, 0, 0);
 });
 uploadImg.addEventListener('change', async (e) => {
     const file = e.target.files[0];

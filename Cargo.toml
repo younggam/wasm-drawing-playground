@@ -11,8 +11,12 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook"]
 
 [dependencies]
+burn = { version = "0.16.1", default-features = false, features = ["ndarray", "wgpu"] }
 wasm-bindgen = "0.2.100"
-web-sys = { version = "0.3.77", features = ["console"] }
+wasm-bindgen-futures = "0.4"
+web-time = "1.1.0"
+log = "0.4.6"
+wasm-logger = "0.2.0"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
@@ -22,6 +26,10 @@ console_error_panic_hook = { version = "0.1.7", optional = true }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.50"
+
+[build-dependencies]
+# Used to generate code from ONNX model
+burn-import = { version = "0.16.1", default-features = false, features = ["onnx"]}
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.
