@@ -12,7 +12,7 @@ const canvas = document.querySelector("canvas"),
     saveImg = document.querySelector(".save-img"),
     convertImg = document.querySelector(".convert-img"),
     uploadImg = document.querySelector(".upload-img"),
-    ctx = canvas.getContext("2d");
+    ctx = canvas.getContext("2d", {willReadFrequently: true});
 // global variables with default value
 let prevMouseX, prevMouseY, snapshot,
     isDrawing = false,
@@ -119,17 +119,15 @@ convertImg.addEventListener("click", async () => {
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     const arrayBuffer = await blob.arrayBuffer();
     const inputBytes = new Uint8Array(arrayBuffer);
-
-    // const result = grayscale_image(inputBytes); // wasm 함수 호출
-    // const outputBlob = new Blob([result], {type: 'image/png'});
-    // const outputUrl = URL.createObjectURL(outputBlob);
+    const outputBlob = new Blob([wasm.image_something(inputBytes)], {type: 'image/png'});
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    img.src = URL.createObjectURL(outputBlob);
 });
 uploadImg.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     const img = new Image();
-    img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    };
+    img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     img.src = URL.createObjectURL(file);
 });
 canvas.addEventListener("mousedown", startDraw);
