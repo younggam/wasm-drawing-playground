@@ -9,6 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["console_error_panic_hook"]
+half_precision = []
 
 [dependencies]
 burn = { version = "0.16.1", default-features = false, features = ["ndarray", "wgpu"] }
