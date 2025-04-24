@@ -30,7 +30,7 @@ wasm-bindgen-test = "0.3.50"
 
 [build-dependencies]
 # Used to generate code from ONNX model
-burn-import = { version = "0.16.1", default-features = false, features = ["onnx"]}
+burn-import = { version = "0.17.0", default-features = false, features = ["onnx"]}
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.
