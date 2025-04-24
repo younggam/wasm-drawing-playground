@@ -1,9 +1,10 @@
 use alloc::vec::Vec;
-use burn::nn::InstanceNorm;
-use burn::nn::conv::{Conv2d, Conv2dConfig};
+use burn::nn::{
+    conv::{Conv2d, Conv2dConfig},
+    interpolate::{Interpolate2d, Interpolate2dConfig, InterpolateMode},
+    {InstanceNorm, InstanceNormConfig, Relu},
+};
 use burn::prelude::*;
-use burn::tensor::module::conv2d;
-use burn::tensor::ops::ConvOptions;
 
 #[derive(Module, Debug)]
 pub struct TransformerNet<B: Backend> {
@@ -13,16 +14,71 @@ pub struct TransformerNet<B: Backend> {
     in2: InstanceNorm<B>,
     conv3: ConvLayer<B>,
     in3: InstanceNorm<B>,
+    res1: ResidualBlock<B>,
+    res2: ResidualBlock<B>,
+    res3: ResidualBlock<B>,
+    res4: ResidualBlock<B>,
+    res5: ResidualBlock<B>,
+    deconv1: UpsampleConvLayer<B>,
+    in4: InstanceNorm<B>,
+    deconv2: UpsampleConvLayer<B>,
+    in5: InstanceNorm<B>,
+    deconv3: ConvLayer<B>,
+    relu: Relu,
 }
 
 impl<B: Backend> TransformerNet<B> {
-    pub fn init(device: &B::Device) -> Self {}
+    pub fn init(device: &B::Device) -> Self {
+        Self {
+            conv1: ConvLayer::init(3, 32, 9, 1, device),
+            in1: InstanceNormConfig::new(32).with_affine(true).init(device),
+            conv2: ConvLayer::init(32, 64, 3, 2, device),
+            in2: InstanceNormConfig::new(64).with_affine(true).init(device),
+            conv3: ConvLayer::init(64, 128, 3, 2, device),
+            in3: InstanceNormConfig::new(128).with_affine(true).init(device),
+            res1: ResidualBlock::init(128, device),
+            res2: ResidualBlock::init(128, device),
+            res3: ResidualBlock::init(128, device),
+            res4: ResidualBlock::init(128, device),
+            res5: ResidualBlock::init(128, device),
+            deconv1: UpsampleConvLayer::init(128, 64, 3, 1, Some(2.0), device),
+            in4: InstanceNormConfig::new(64).with_affine(true).init(device),
+            deconv2: UpsampleConvLayer::init(64, 32, 3, 1, Some(2.0), device),
+            in5: InstanceNormConfig::new(32).with_affine(true).init(device),
+            deconv3: ConvLayer::init(32, 3, 9, 1, device),
+            relu: Relu::new(),
+        }
+    }
+
+    pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
+        let input = self
+            .relu
+            .forward(self.in1.forward(self.conv1.forward(input)));
+        let input = self
+            .relu
+            .forward(self.in2.forward(self.conv2.forward(input)));
+        let input = self
+            .relu
+            .forward(self.in3.forward(self.conv3.forward(input)));
+        let input = self.res1.forward(input);
+        let input = self.res2.forward(input);
+        let input = self.res3.forward(input);
+        let input = self.res4.forward(input);
+        let input = self.res5.forward(input);
+        let input = self
+            .relu
+            .forward(self.in4.forward(self.deconv1.forward(input)));
+        let input = self
+            .relu
+            .forward(self.in5.forward(self.deconv2.forward(input)));
+        self.deconv3.forward(input)
+    }
 }
 
 #[derive(Module, Debug)]
 pub struct ConvLayer<B: Backend> {
     conv2d: Conv2d<B>,
-    reflection_pad: ReflectionPad2d<B>,
+    reflection_pad: ReflectionPad2d,
 }
 
 impl<B: Backend> ConvLayer<B> {
@@ -33,6 +89,7 @@ impl<B: Backend> ConvLayer<B> {
         stride: usize,
         device: &B::Device,
     ) -> Self {
+        let kernel_size = kernel_size / 2;
         Self {
             reflection_pad: ReflectionPad2d::init([
                 kernel_size,
@@ -53,124 +110,114 @@ impl<B: Backend> ConvLayer<B> {
 }
 
 #[derive(Module, Debug)]
-pub struct ReflectionPad2d<B: Backend> {
+pub struct ReflectionPad2d {
     pub padding: [usize; 4],
 }
 
-impl<B: Backend> ReflectionPad2d<B> {
+impl ReflectionPad2d {
     pub fn init(padding: [usize; 4]) -> Self {
         Self { padding }
     }
 
-    pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
+    pub fn forward<B: Backend>(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
         let [pl, pr, pt, pb] = self.padding;
 
         let shape = input.shape();
         let h = shape.dims[2];
         let w = shape.dims[3];
 
-        let left = input
-            .clone()
-            .slice([None, None, None, Some((0, pl as i64))])
-            .flip([3]);
+        let left = input.clone().slice(s![.., .., .., 0..pl]).flip([3]);
         let right = input
             .clone()
-            .slice([None, None, None, Some(((w - pr) as i64, (w - 1) as i64))])
+            .slice(s![.., .., .., (w - pr)..(w - 1)])
             .flip([3]);
         let padded_w = Tensor::cat(Vec::from([left, input, right]), 3);
 
-        let top = padded_w
-            .clone()
-            .slice([None, None, Some((0, pt as i64)), None])
-            .flip([2]);
+        let top = padded_w.clone().slice(s![.., .., 0..pt, ..]).flip([2]);
         let bottom = padded_w
             .clone()
-            .slice([None, None, Some(((h - pb) as i64, (h - 1) as i64)), None])
+            .slice(s![.., .., (h - pb)..(h - 1), ..])
             .flip([2]);
 
         Tensor::cat(Vec::from([top, padded_w, bottom]), 2)
     }
 }
-/*
-class ResidualBlock(torch.nn.Module):
-    """ResidualBlock
-    introduced in: https://arxiv.org/abs/1512.03385
-    recommended architecture: http://torch.ch/blog/2016/02/04/resnets.html
-    """
 
-    def __init__(self, channels):
-        super(ResidualBlock, self).__init__()
-        self.conv1 = ConvLayer(channels, channels, kernel_size=3, stride=1)
-        self.in1 = torch.nn.InstanceNorm2d(channels, affine=True)
-        self.conv2 = ConvLayer(channels, channels, kernel_size=3, stride=1)
-        self.in2 = torch.nn.InstanceNorm2d(channels, affine=True)
-        self.relu = torch.nn.ReLU()
+#[derive(Module, Debug)]
+pub struct ResidualBlock<B: Backend> {
+    conv1: ConvLayer<B>,
+    in1: InstanceNorm<B>,
+    conv2: ConvLayer<B>,
+    in2: InstanceNorm<B>,
+    relu: Relu,
+}
 
-    def forward(self, x):
-        residual = x
-        out = self.relu(self.in1(self.conv1(x)))
-        out = self.in2(self.conv2(out))
-        out = out + residual
-        return out
+impl<B: Backend> ResidualBlock<B> {
+    pub fn init(channels: usize, device: &B::Device) -> Self {
+        Self {
+            conv1: ConvLayer::init(channels, channels, 3, 1, device),
+            in1: InstanceNormConfig::new(channels)
+                .with_affine(true)
+                .init(device),
+            conv2: ConvLayer::init(channels, channels, 3, 1, device),
+            in2: InstanceNormConfig::new(channels)
+                .with_affine(true)
+                .init(device),
+            relu: Relu::new(),
+        }
+    }
 
+    pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
+        let residual = input.clone();
+        let out = self
+            .relu
+            .forward(self.in1.forward(self.conv1.forward(input)));
+        self.in2.forward(self.conv2.forward(out)) + residual
+    }
+}
 
-class UpsampleConvLayer(torch.nn.Module):
-    """UpsampleConvLayer
-    Upsamples the input and then does a convolution. This method gives better results
-    compared to ConvTranspose2d.
-    ref: http://distill.pub/2016/deconv-checkerboard/
-    """
+#[derive(Module, Debug)]
+pub struct UpsampleConvLayer<B: Backend> {
+    interpolate2d: Option<Interpolate2d>,
+    reflection_pad: ReflectionPad2d,
+    conv2d: Conv2d<B>,
+}
 
-    def __init__(self, in_channels, out_channels, kernel_size, stride, upsample=None):
-        super(UpsampleConvLayer, self).__init__()
-        self.upsample = upsample
-        reflection_padding = kernel_size // 2
-        self.reflection_pad = torch.nn.ReflectionPad2d(reflection_padding)
-        self.conv2d = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride)
+impl<B: Backend> UpsampleConvLayer<B> {
+    pub fn init(
+        in_channels: usize,
+        out_channels: usize,
+        kernel_size: usize,
+        stride: usize,
+        upsample: Option<f32>,
+        device: &B::Device,
+    ) -> Self {
+        let kernel_size = kernel_size / 2;
+        Self {
+            interpolate2d: upsample.map(|scale_factor| {
+                Interpolate2dConfig::new()
+                    .with_mode(InterpolateMode::Nearest)
+                    .with_scale_factor(Some([scale_factor, scale_factor]))
+                    .init()
+            }),
+            reflection_pad: ReflectionPad2d::init([
+                kernel_size,
+                kernel_size,
+                kernel_size,
+                kernel_size,
+            ]),
+            conv2d: Conv2dConfig::new([in_channels, out_channels], [kernel_size, kernel_size])
+                .with_stride([stride, stride])
+                .init(device),
+        }
+    }
 
-    def forward(self, x):
-        x_in = x
-        if self.upsample:
-            x_in = torch.nn.functional.interpolate(x_in, mode='nearest', scale_factor=self.upsample)
-        out = self.reflection_pad(x_in)
-        out = self.conv2d(out)
-        return out
-class TransformerNet(torch.nn.Module):
-    def __init__(self):
-        super(TransformerNet, self).__init__()
-        # Initial convolution layers
-        self.conv1 = ConvLayer(3, 32, kernel_size=9, stride=1)
-        self.in1 = torch.nn.InstanceNorm2d(32, affine=True)
-        self.conv2 = ConvLayer(32, 64, kernel_size=3, stride=2)
-        self.in2 = torch.nn.InstanceNorm2d(64, affine=True)
-        self.conv3 = ConvLayer(64, 128, kernel_size=3, stride=2)
-        self.in3 = torch.nn.InstanceNorm2d(128, affine=True)
-        # Residual layers
-        self.res1 = ResidualBlock(128)
-        self.res2 = ResidualBlock(128)
-        self.res3 = ResidualBlock(128)
-        self.res4 = ResidualBlock(128)
-        self.res5 = ResidualBlock(128)
-        # Upsampling Layers
-        self.deconv1 = UpsampleConvLayer(128, 64, kernel_size=3, stride=1, upsample=2)
-        self.in4 = torch.nn.InstanceNorm2d(64, affine=True)
-        self.deconv2 = UpsampleConvLayer(64, 32, kernel_size=3, stride=1, upsample=2)
-        self.in5 = torch.nn.InstanceNorm2d(32, affine=True)
-        self.deconv3 = ConvLayer(32, 3, kernel_size=9, stride=1)
-        # Non-linearities
-        self.relu = torch.nn.ReLU()
-
-    def forward(self, X):
-        y = self.relu(self.in1(self.conv1(X)))
-        y = self.relu(self.in2(self.conv2(y)))
-        y = self.relu(self.in3(self.conv3(y)))
-        y = self.res1(y)
-        y = self.res2(y)
-        y = self.res3(y)
-        y = self.res4(y)
-        y = self.res5(y)
-        y = self.relu(self.in4(self.deconv1(y)))
-        y = self.relu(self.in5(self.deconv2(y)))
-        y = self.deconv3(y)
-        return y
-*/
+    pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
+        let input = if let Some(interpolate2d) = &self.interpolate2d {
+            interpolate2d.forward(input)
+        } else {
+            input
+        };
+        self.conv2d.forward(self.reflection_pad.forward(input))
+    }
+}

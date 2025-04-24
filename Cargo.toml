@@ -12,11 +12,11 @@ default = ["console_error_panic_hook"]
 half_precision = []
 
 [dependencies]
-burn = { version = "0.16.1", default-features = false, features = ["ndarray", "wgpu"] }
+burn = { version = "0.17.0", default-features = false, features = ["ndarray", "wgpu"] }
 wasm-bindgen = "0.2.100"
-wasm-bindgen-futures = "0.4"
+wasm-bindgen-futures = "0.4.5"
 web-time = "1.1.0"
-log = "0.4.6"
+log = "0.4.27"
 wasm-logger = "0.2.0"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
@@ -30,7 +30,7 @@ wasm-bindgen-test = "0.3.50"
 
 [build-dependencies]
 # Used to generate code from ONNX model
-burn-import = { version = "0.16.1", default-features = false, features = ["onnx"]}
+burn-import = { version = "0.17.0", default-features = false, features = ["onnx"]}
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.
