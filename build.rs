@@ -1,11 +1,11 @@
+use burn::record::BinFileRecorder;
 /// This build script does the following:
 /// 1. Loads PyTorch weights into a model record.
 /// 2. Saves the model record to a file using the `NamedMpkFileRecorder`.
 use burn::{
     backend::NdArray,
-    record::{FullPrecisionSettings, NamedMpkFileRecorder, Recorder},
+    record::{FullPrecisionSettings, Recorder},
 };
-use burn::record::{BinFileRecorder, NamedMpkBytesRecorder};
 use burn_import::pytorch::{LoadArgs, PyTorchFileRecorder};
 
 const MODEL_NAMES: &[&str] = &["candy", "mosaic", "rain_princess", "udnie"];
