@@ -1,29 +1,34 @@
-use burn_import::{burn::graph::RecordType, onnx::ModelGen};
+/// This build script does the following:
+/// 1. Loads PyTorch weights into a model record.
+/// 2. Saves the model record to a file using the `NamedMpkFileRecorder`.
+use burn::{
+    backend::NdArray,
+    record::{FullPrecisionSettings, NamedMpkFileRecorder, Recorder},
+};
+use burn_import::pytorch::{LoadArgs, PyTorchFileRecorder};
 
-const INPUT_ONNX_FILES: [&str; 5] = [
-    "src/model/candy-8.onnx",
-    "src/model/mosaic-9.onnx",
-    "src/model/pointilism-9.onnx",
-    "src/model/rain-princess-9.onnx",
-    "src/model/udnie-9.onnx",
-];
-const OUT_DIR: &str = "model/";
+const MODEL_NAMES: &[&str] = &["candy", "mosaic", "rain_princess", "udnie"];
+
+// Basic backend type (not used directly here).
+type B = NdArray<f32>;
 
 fn main() {
-    // Re-run the build script if model files change.
-    println!("cargo:rerun-if-changed=src/model");
+    let device = Default::default();
+    // Save the model record to a file.
+    let recorder = NamedMpkFileRecorder::<FullPrecisionSettings>::default();
 
-    // Check if half_precision is enabled.
-    let half_precision = cfg!(feature = "half_precision");
+    for model_name in MODEL_NAMES {
+        // Load PyTorch weights into a model record.
+        let record: model::TransformerNetRecord<B> =
+            PyTorchFileRecorder::<FullPrecisionSettings>::default()
+                .load(
+                    LoadArgs::new(format!("pytorch/{model_name}.pt").into()),
+                    &device,
+                )
+                .expect(&format!("Failed to decode {model_name}"));
 
-    for onnx_file in INPUT_ONNX_FILES {
-        // Generate the model code from the ONNX file.
-        ModelGen::new()
-            .input(onnx_file)
-            .out_dir(OUT_DIR)
-            .record_type(RecordType::Bincode)
-            .embed_states(true)
-            .half_precision(half_precision)
-            .run_from_script();
+        recorder
+            .record(record, format!("pytorch/burn/{model_name}").into())
+            .expect(&format!("Failed to save {model_name} record"));
     }
 }

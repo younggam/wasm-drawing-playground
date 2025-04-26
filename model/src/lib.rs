@@ -1,3 +1,6 @@
+#![cfg_attr(not(test), no_std)]
+extern crate alloc;
+
 use alloc::vec::Vec;
 use burn::nn::{
     conv::{Conv2d, Conv2dConfig},
@@ -77,8 +80,8 @@ impl<B: Backend> TransformerNet<B> {
 
 #[derive(Module, Debug)]
 pub struct ConvLayer<B: Backend> {
-    conv2d: Conv2d<B>,
     reflection_pad: ReflectionPad2d,
+    conv2d: Conv2d<B>,
 }
 
 impl<B: Backend> ConvLayer<B> {
@@ -109,7 +112,7 @@ impl<B: Backend> ConvLayer<B> {
     }
 }
 
-#[derive(Module, Debug)]
+#[derive(Module, Clone, Debug)]
 pub struct ReflectionPad2d {
     pub padding: [usize; 4],
 }
@@ -220,4 +223,25 @@ impl<B: Backend> UpsampleConvLayer<B> {
         };
         self.conv2d.forward(self.reflection_pad.forward(input))
     }
+}
+
+#[derive(Module, Debug)]
+pub struct What<B: Backend> {
+    conv1: ConvLayer<B>,
+    in1: InstanceNorm<B>,
+    conv2: ConvLayer<B>,
+    in2: InstanceNorm<B>,
+    conv3: ConvLayer<B>,
+    in3: InstanceNorm<B>,
+    res1: ResidualBlock<B>,
+    res2: ResidualBlock<B>,
+    res3: ResidualBlock<B>,
+    res4: ResidualBlock<B>,
+    res5: ResidualBlock<B>,
+    deconv1: UpsampleConvLayer<B>,
+    in4: InstanceNorm<B>,
+    deconv2: UpsampleConvLayer<B>,
+    in5: InstanceNorm<B>,
+    deconv3: ConvLayer<B>,
+    relu: Relu,
 }
