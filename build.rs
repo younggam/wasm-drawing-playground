@@ -5,6 +5,7 @@ use burn::{
     backend::NdArray,
     record::{FullPrecisionSettings, NamedMpkFileRecorder, Recorder},
 };
+use burn::record::{BinFileRecorder, NamedMpkBytesRecorder};
 use burn_import::pytorch::{LoadArgs, PyTorchFileRecorder};
 
 const MODEL_NAMES: &[&str] = &["candy", "mosaic", "rain_princess", "udnie"];
@@ -15,7 +16,7 @@ type B = NdArray<f32>;
 fn main() {
     let device = Default::default();
     // Save the model record to a file.
-    let recorder = NamedMpkFileRecorder::<FullPrecisionSettings>::default();
+    let recorder = BinFileRecorder::<FullPrecisionSettings>::default();
 
     for model_name in MODEL_NAMES {
         // Load PyTorch weights into a model record.
