@@ -53,7 +53,14 @@ impl<B: Backend> TransformerNet<B> {
         }
     }
 
-    pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
+    pub async fn forward(&self, input: &[f32], width: usize, height: usize) -> Vec<f32> {
+        let input = Tensor::<B, 1>::from_floats(input, &B::Device::default()).reshape([
+            1,
+            3,
+            width,
+            height,
+        ]);
+
         let input = self
             .relu
             .forward(self.in1.forward(self.conv1.forward(input)));
@@ -74,7 +81,9 @@ impl<B: Backend> TransformerNet<B> {
         let input = self
             .relu
             .forward(self.in5.forward(self.deconv2.forward(input)));
-        self.deconv3.forward(input)
+        let output = self.deconv3.forward(input);
+
+        output.into_data_async().await.to_vec().unwrap()
     }
 }
 
@@ -132,14 +141,14 @@ impl ReflectionPad2d {
         let left = input.clone().slice(s![.., .., .., 0..pl]).flip([3]);
         let right = input
             .clone()
-            .slice(s![.., .., .., (w - pr)..(w - 1)])
+            .slice(s![.., .., .., (w - pr)..w])
             .flip([3]);
         let padded_w = Tensor::cat(Vec::from([left, input, right]), 3);
 
         let top = padded_w.clone().slice(s![.., .., 0..pt, ..]).flip([2]);
         let bottom = padded_w
             .clone()
-            .slice(s![.., .., (h - pb)..(h - 1), ..])
+            .slice(s![.., .., (h - pb)..h, ..])
             .flip([2]);
 
         Tensor::cat(Vec::from([top, padded_w, bottom]), 2)

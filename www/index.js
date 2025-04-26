@@ -30,6 +30,8 @@ canvas.width = canvas.offsetWidth;
 canvas.height = canvas.offsetHeight;
 setCanvasBackground();
 
+let styleTransfer = new wasm.StyleTransfer();
+
 const drawRect = (e) => {
     // if fillColor isn't checked draw a rect with border else draw rect with background
     if (!fillColor.checked) {
@@ -117,11 +119,14 @@ saveImg.addEventListener("click", () => {
 });
 convertImg.addEventListener("click", async () => {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    wasm.image_something(imageData.data);
-    ctx.putImageData(imageData, 0, 0);
+    styleTransfer.inference(1, imageData.data, canvas.width, canvas.height).then(data => {
+        imageData.data.set(data);
+        ctx.putImageData(imageData, 0, 0)
+    })
 });
 uploadImg.addEventListener('change', async (e) => {
     const file = e.target.files[0];
+    if (!file) return;
     const img = new Image();
     img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     img.src = URL.createObjectURL(file);

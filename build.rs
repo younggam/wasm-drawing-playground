@@ -23,10 +23,15 @@ fn main() {
         let record: model::TransformerNetRecord<B> =
             PyTorchFileRecorder::<FullPrecisionSettings>::default()
                 .load(
-                    LoadArgs::new(format!("pytorch/{model_name}.pt").into()),
+                    LoadArgs::new(format!("pytorch/{model_name}.pt").into())
+                        .with_key_remap("(in.\\.)weight", "${1}gamma")
+                        .with_key_remap("bias", "beta")
+                        .with_debug_print(),
                     &device,
                 )
                 .expect(&format!("Failed to decode {model_name}"));
+
+        // println!("{:?}", record.in1.gamma.unwrap().shape());
 
         recorder
             .record(record, format!("pytorch/burn/{model_name}").into())
