@@ -25,7 +25,7 @@ fn main() {
                 .load(
                     LoadArgs::new(format!("pytorch/{model_name}.pt").into())
                         .with_key_remap("(in.\\.)weight", "${1}gamma")
-                        .with_key_remap("bias", "beta")
+                        .with_key_remap("(in.\\.)bias", "${1}beta")
                         .with_debug_print(),
                     &device,
                 )
@@ -36,5 +36,6 @@ fn main() {
         recorder
             .record(record, format!("pytorch/burn/{model_name}").into())
             .expect(&format!("Failed to save {model_name} record"));
+        // panic!("Done");
     }
 }

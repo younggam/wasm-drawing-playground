@@ -52,9 +52,9 @@ impl StyleTransfer {
         for y in 0..height {
             for x in 0..width {
                 let index = (y * width + x) * 4;
-                input[i_r] = (data[index] as f32) / 255.0;
-                input[i_g] = (data[index + 1] as f32) / 255.0;
-                input[i_b] = (data[index + 2] as f32) / 255.0;
+                input[i_r] = data[index] as f32;
+                input[i_g] = data[index + 1] as f32;
+                input[i_b] = data[index + 2] as f32;
                 i_r += 1;
                 i_g += 1;
                 i_b += 1;
@@ -74,7 +74,7 @@ impl StyleTransfer {
         log::debug!("Inference is completed in {:?}", start.elapsed());
 
         fn rgb_float_to_u8(val: f32) -> u8 {
-            (val.clamp(0.0, 1.0) * 255.0) as u8
+            val.clamp(0.0, 255.0) as u8
         }
 
         let (mut i_r, mut i_g, mut i_b) = (0usize, size, 2 * size);
