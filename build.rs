@@ -1,3 +1,4 @@
+use model::TransformerNetRecord;
 use burn::record::BinFileRecorder;
 /// This build script does the following:
 /// 1. Loads PyTorch weights into a model record.
@@ -20,7 +21,7 @@ fn main() {
 
     for model_name in MODEL_NAMES {
         // Load PyTorch weights into a model record.
-        let record: model::TransformerNetRecord<B> =
+        let record: TransformerNetRecord<B> =
             PyTorchFileRecorder::<FullPrecisionSettings>::default()
                 .load(
                     LoadArgs::new(format!("pytorch/{model_name}.pt").into())

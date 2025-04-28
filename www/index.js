@@ -1,6 +1,4 @@
-import * as wasm from "wasm-drawing-playground";
-
-wasm.greet();
+const worker = new Worker(new URL('./worker.js', import.meta.url));
 
 const canvas = document.querySelector("canvas"),
     toolBtns = document.querySelectorAll(".tool"),
@@ -30,7 +28,14 @@ canvas.width = canvas.offsetWidth;
 canvas.height = canvas.offsetHeight;
 setCanvasBackground();
 
-let styleTransfer = new wasm.StyleTransfer();
+worker.onmessage = event => {
+    const {type, pixels, width, height} = event.data;
+    if (type === 'done') {
+        console.log('style transfer done');
+        const imageData = new ImageData(new Uint8ClampedArray(pixels), width, height);
+        ctx.putImageData(imageData, 0, 0);
+    }
+};
 
 const drawRect = (e) => {
     // if fillColor isn't checked draw a rect with border else draw rect with background
@@ -119,10 +124,13 @@ saveImg.addEventListener("click", () => {
 });
 convertImg.addEventListener("click", async () => {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    styleTransfer.inference(1, imageData.data, canvas.width, canvas.height).then(data => {
-        imageData.data.set(data);
-        ctx.putImageData(imageData, 0, 0)
-    })
+    worker.postMessage({
+        type: 'transfer',
+        modelType: 1,
+        pixels: imageData.data,
+        width: canvas.width,
+        height: canvas.height
+    });
 });
 uploadImg.addEventListener('change', async (e) => {
     const file = e.target.files[0];
