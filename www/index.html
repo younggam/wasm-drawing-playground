@@ -12,7 +12,7 @@
     <section class="tools-board">
         <div class="row">
             <label class="title">Shapes</label>
-            <ul class="options">
+            <ul class="tools">
                 <li class="option tool" id="rectangle">
                     <img src="icons/rectangle.svg" alt="">
                     <span>Rectangle</span>
@@ -32,8 +32,8 @@
             </ul>
         </div>
         <div class="row">
-            <label class="title">Options</label>
-            <ul class="options">
+            <label class="title">Tools</label>
+            <ul class="tools">
                 <li class="option active tool" id="brush">
                     <img src="icons/brush.svg" alt="">
                     <span>Brush</span>
@@ -47,11 +47,11 @@
                 </li>
             </ul>
         </div>
-        <div class="row colors">
+        <div class="row">
             <label class="title">Colors</label>
-            <ul class="options">
+            <ul class="colors">
                 <li class="option"></li>
-                <li class="option selected"></li>
+                <li class="option active"></li>
                 <li class="option"></li>
                 <li class="option"></li>
                 <li class="option">
@@ -61,13 +61,45 @@
         </div>
         <div class="row buttons">
             <button class="clear-canvas">Clear Canvas</button>
+        </div>
+    </section>
+    <section class="drawing-board" style="background-image: url('./background.png');">
+        <canvas></canvas>
+    </section>
+    <section class="style-board">
+        <div class="row">
+            <label class="title">Styles</label>
+            <ul class="styles">
+                <li class="option active style" id="candy">
+                    <span>Candy</span>
+                </li>
+                <li class="option style" id="mosaic">
+                    <span>Mosaic</span>
+                </li>
+                <li class="option style" id="rain-princess">
+                    <span>Rain Princess</span>
+                </li>
+                <li class="option style" id="udnie">
+                    <span>Udnie</span>
+                </li>
+            </ul>
+        </div>
+        <div class="row">
+            <label class="title">Backends</label>
+            <ul class="backends">
+                <li class="option active backend" id="ndarray">
+                    <span>NdArray</span>
+                </li>
+                <li class="option backend" id="wgpu">
+                    <span>WGPU</span>
+                </li>
+            </ul>
+        </div>
+        <div class="row buttons">
             <input class="upload-img" type="file" id="imageInput" accept="image/*">
             <button class="convert-img">Convert Image</button>
             <button class="save-img">Save As Image</button>
         </div>
-    </section>
-    <section class="drawing-board">
-        <canvas></canvas>
     </section>
 </div>
 

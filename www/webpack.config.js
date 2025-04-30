@@ -20,6 +20,6 @@ module.exports = {
         ],
     },
     plugins: [
-        new CopyWebpackPlugin(['index.html', 'icons/*.svg'])
+        new CopyWebpackPlugin(['index.html', 'icons/*.svg','background.png'])
     ],
 };

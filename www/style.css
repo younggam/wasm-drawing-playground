@@ -29,7 +29,7 @@ section {
     border-radius: 7px;
 }
 
-.tools-board {
+.tools-board, .style-board {
     width: 210px;
     padding: 15px 22px 0;
 }
@@ -38,12 +38,12 @@ section {
     margin-bottom: 20px;
 }
 
-.row .options {
+.row :is(.tools, .colors, .styles, .backends){
     list-style: none;
     margin: 10px 0 0 5px;
 }
 
-.row .options .option {
+.row :is(.tools, .colors, .styles, .backends) .option {
     display: flex;
     cursor: pointer;
     align-items: center;
@@ -80,7 +80,7 @@ section {
     margin-top: 10px;
 }
 
-.colors .options {
+.colors {
     display: flex;
     justify-content: space-between;
 }
@@ -180,11 +180,15 @@ section {
 .drawing-board {
     flex: 1;
     overflow: hidden;
-    background: #000000;
+    background: #cccccc;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-width: 1024px;
+    max-height: 1024px;
 }
 
 .drawing-board canvas {
-    centering: center;
-    width: 256px;
-    height: 256px;
+    /*width: 100%;*/
+    /*height: 100%;*/
 }

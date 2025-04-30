@@ -5,6 +5,8 @@ const canvas = document.querySelector("canvas"),
     fillColor = document.querySelector("#fill-color"),
     sizeSlider = document.querySelector("#size-slider"),
     colorBtns = document.querySelectorAll(".colors .option"),
+    styleBtns = document.querySelectorAll(".style"),
+    backendBtns = document.querySelectorAll(".backend"),
     colorPicker = document.querySelector("#color-picker"),
     clearCanvas = document.querySelector(".clear-canvas"),
     saveImg = document.querySelector(".save-img"),
@@ -16,7 +18,12 @@ let prevMouseX, prevMouseY, snapshot,
     isDrawing = false,
     selectedTool = "brush",
     brushWidth = 5,
-    selectedColor = "#000";
+    selectedColor = "#000",
+    selectedStyle = "candy",
+    selectedBackend = "ndarray";
+
+// initialization
+
 const setCanvasBackground = () => {
     // setting whole canvas background to white, so the downloaded img background will be white
     ctx.fillStyle = "#fff";
@@ -24,8 +31,8 @@ const setCanvasBackground = () => {
     ctx.fillStyle = selectedColor; // setting fillstyle back to the selectedColor, it'll be the brush color
 }
 
-canvas.width = canvas.offsetWidth;
-canvas.height = canvas.offsetHeight;
+canvas.width = 64;//canvas.offsetWidth;
+canvas.height = 64;//canvas.offsetHeight;
 setCanvasBackground();
 
 worker.onmessage = event => {
@@ -36,6 +43,8 @@ worker.onmessage = event => {
         ctx.putImageData(imageData, 0, 0);
     }
 };
+
+// draw func
 
 const drawRect = (e) => {
     // if fillColor isn't checked draw a rect with border else draw rect with background
@@ -88,10 +97,13 @@ const drawing = (e) => {
         drawTriangle(e);
     }
 }
+
+// tool-board
+
 toolBtns.forEach(btn => {
     btn.addEventListener("click", () => { // adding click event to all tool option
         // removing active class from the previous option and adding on current clicked option
-        document.querySelector(".options .active").classList.remove("active");
+        document.querySelector(".tools .active").classList.remove("active");
         btn.classList.add("active");
         selectedTool = btn.id;
     });
@@ -100,7 +112,7 @@ sizeSlider.addEventListener("change", () => brushWidth = sizeSlider.value); // p
 colorBtns.forEach(btn => {
     btn.addEventListener("click", () => { // adding click event to all color button
         // removing selected class from the previous option and adding on current clicked option
-        document.querySelector(".options .selected").classList.remove("selected");
+        document.querySelector(".colors .active").classList.remove("selected");
         btn.classList.add("selected");
         // passing selected btn background color as selectedColor value
         selectedColor = window.getComputedStyle(btn).getPropertyValue("background-color");
@@ -116,22 +128,32 @@ clearCanvas.addEventListener("click", () => {
     uploadImg.value = '';
     setCanvasBackground();
 });
-saveImg.addEventListener("click", () => {
-    const link = document.createElement("a"); // creating <a> element
-    link.download = `${Date.now()}.jpg`; // passing current date as link download value
-    link.href = canvas.toDataURL(); // passing canvasData as link href value
-    link.click(); // clicking link to download image
-});
-convertImg.addEventListener("click", async () => {
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    worker.postMessage({
-        type: 'transfer',
-        modelType: 1,
-        pixels: imageData.data,
-        width: canvas.width,
-        height: canvas.height
+
+// canvas
+
+canvas.addEventListener("mousedown", startDraw);
+canvas.addEventListener("mousemove", drawing);
+canvas.addEventListener("mouseup", () => isDrawing = false);
+canvas.addEventListener("mouseleave", () => isDrawing = false);
+
+// style-board
+
+styleBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelector(".styles .active").classList.remove("active");
+        btn.classList.add("active");
+        selectedStyle = btn.id;
     });
-});
+})
+
+backendBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelector(".backends .active").classList.remove("active");
+        btn.classList.add("active");
+        selectedBackend = btn.id;
+    });
+})
+
 uploadImg.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -139,6 +161,21 @@ uploadImg.addEventListener('change', async (e) => {
     img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     img.src = URL.createObjectURL(file);
 });
-canvas.addEventListener("mousedown", startDraw);
-canvas.addEventListener("mousemove", drawing);
-canvas.addEventListener("mouseup", () => isDrawing = false);
+
+convertImg.addEventListener("click", async () => {
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    worker.postMessage({
+        type: 'transfer',
+        styleName: selectedStyle,
+        pixels: imageData.data,
+        width: canvas.width,
+        height: canvas.height
+    });
+});
+
+saveImg.addEventListener("click", () => {
+    const link = document.createElement("a"); // creating <a> element
+    link.download = `${Date.now()}.jpg`; // passing current date as link download value
+    link.href = canvas.toDataURL(); // passing canvasData as link href value
+    link.click(); // clicking link to download image
+});
