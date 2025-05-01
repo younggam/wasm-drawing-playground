@@ -1,7 +1,7 @@
 import * as wasm from "wasm-drawing-playground";
 
-let styleTransfer = new wasm.StyleTransfer();
-console.log('style transfer ready');
+let styleTransfer;
+wasm.StyleTransfer.new().then(done => styleTransfer = done);
 
 self.onmessage = event => {
     const {type, styleName, pixels, width, height} = event.data;

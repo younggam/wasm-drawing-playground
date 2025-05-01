@@ -38,12 +38,12 @@ section {
     margin-bottom: 20px;
 }
 
-.row :is(.tools, .colors, .styles, .backends){
+.row :is(.tools, .colors, .styles){
     list-style: none;
     margin: 10px 0 0 5px;
 }
 
-.row :is(.tools, .colors, .styles, .backends) .option {
+.row :is(.tools, .colors, .styles) .option {
     display: flex;
     cursor: pointer;
     align-items: center;

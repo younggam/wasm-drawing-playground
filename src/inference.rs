@@ -22,13 +22,22 @@ pub struct StyleTransfer {
 
 #[wasm_bindgen]
 impl StyleTransfer {
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
-        log::info!("Initializing the style transfer");
-        let device = Default::default();
-        Self {
-            model: ModelWithBackend::WithNdArrayBackend(Models::new(&device)),
-        }
+    /// Sets the backend to wgpu
+    pub async fn new() -> Self {
+        log::info!("Loading the model to the Wgpu backend");
+        let start = Instant::now();
+
+        let device = WgpuDevice::default();
+        init_setup_async::<AutoGraphicsApi>(&device, Default::default()).await;
+        let ret = Self {
+            model: ModelWithBackend::WithWgpuBackend(Models::new(&device)),
+        };
+
+        log::debug!(
+            "Model is loaded to the Wgpu backend in {:?}",
+            start.elapsed()
+        );
+        ret
     }
 
     /// Runs inference on the image
@@ -88,48 +97,5 @@ impl StyleTransfer {
         }
         data.copy_from(&vec);
         Ok(data)
-    }
-
-    /// Sets the backend to NdArray
-    pub async fn set_backend_ndarray(&mut self) {
-        log::info!("Loading the model to the NdArray backend");
-        let start = Instant::now();
-
-        let device = Default::default();
-        self.model = ModelWithBackend::WithNdArrayBackend(Models::new(&device));
-
-        log::debug!(
-            "Model is loaded to the NdArray backend in {:?}",
-            start.elapsed()
-        );
-    }
-
-    /// Sets the backend to Wgpu
-    pub async fn set_backend_wgpu(&mut self) {
-        log::info!("Loading the model to the Wgpu backend");
-        let start = Instant::now();
-
-        let device = WgpuDevice::default();
-        init_setup_async::<AutoGraphicsApi>(&device, Default::default()).await;
-        self.model = ModelWithBackend::WithWgpuBackend(Models::new(&device));
-
-        log::debug!(
-            "Model is loaded to the Wgpu backend in {:?}",
-            start.elapsed()
-        );
-
-        log::debug!("Warming up the model");
-        let start = Instant::now();
-
-        let _ = self
-            .inference(
-                0,
-                Uint8ClampedArray::new_with_length(3 * 256 * 256),
-                256,
-                256,
-            )
-            .await;
-
-        log::debug!("Warming up is completed in {:?}", start.elapsed());
     }
 }

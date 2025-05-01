@@ -6,7 +6,6 @@ const canvas = document.querySelector("canvas"),
     sizeSlider = document.querySelector("#size-slider"),
     colorBtns = document.querySelectorAll(".colors .option"),
     styleBtns = document.querySelectorAll(".style"),
-    backendBtns = document.querySelectorAll(".backend"),
     colorPicker = document.querySelector("#color-picker"),
     clearCanvas = document.querySelector(".clear-canvas"),
     saveImg = document.querySelector(".save-img"),
@@ -19,8 +18,7 @@ let prevMouseX, prevMouseY, snapshot,
     selectedTool = "brush",
     brushWidth = 5,
     selectedColor = "#000",
-    selectedStyle = "candy",
-    selectedBackend = "ndarray";
+    selectedStyle = "candy";
 
 // initialization
 
@@ -31,8 +29,8 @@ const setCanvasBackground = () => {
     ctx.fillStyle = selectedColor; // setting fillstyle back to the selectedColor, it'll be the brush color
 }
 
-canvas.width = 64;//canvas.offsetWidth;
-canvas.height = 64;//canvas.offsetHeight;
+canvas.width = 256;//canvas.offsetWidth;
+canvas.height = 256;//canvas.offsetHeight;
 setCanvasBackground();
 
 worker.onmessage = event => {
@@ -143,14 +141,6 @@ styleBtns.forEach(btn => {
         document.querySelector(".styles .active").classList.remove("active");
         btn.classList.add("active");
         selectedStyle = btn.id;
-    });
-})
-
-backendBtns.forEach(btn => {
-    btn.addEventListener("click", () => {
-        document.querySelector(".backends .active").classList.remove("active");
-        btn.classList.add("active");
-        selectedBackend = btn.id;
     });
 })
 
