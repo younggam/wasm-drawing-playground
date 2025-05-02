@@ -1,8 +1,10 @@
 const worker = new Worker(new URL('./worker.js', import.meta.url));
 
+// global variables with default value
 const canvas = document.querySelector("canvas"),
     toolBtns = document.querySelectorAll(".tool"),
     fillColor = document.querySelector("#fill-color"),
+    preserveColor = document.querySelector("#preserve-color"),
     sizeSlider = document.querySelector("#size-slider"),
     colorBtns = document.querySelectorAll(".colors .option"),
     styleBtns = document.querySelectorAll(".style"),
@@ -12,7 +14,6 @@ const canvas = document.querySelector("canvas"),
     convertImg = document.querySelector(".convert-img"),
     uploadImg = document.querySelector(".upload-img"),
     ctx = canvas.getContext("2d", {willReadFrequently: true});
-// global variables with default value
 let prevMouseX, prevMouseY, snapshot,
     isDrawing = false,
     selectedTool = "brush",
@@ -148,7 +149,11 @@ uploadImg.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const img = new Image();
-    img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0)
+    };
     img.src = URL.createObjectURL(file);
 });
 
@@ -159,7 +164,8 @@ convertImg.addEventListener("click", async () => {
         styleName: selectedStyle,
         pixels: imageData.data,
         width: canvas.width,
-        height: canvas.height
+        height: canvas.height,
+        preserve: preserveColor.checked,
     });
 });
 

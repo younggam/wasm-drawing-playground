@@ -47,20 +47,21 @@ impl StyleTransfer {
         data: Uint8ClampedArray,
         width: usize,
         height: usize,
+        preserve_color: bool,
     ) -> Result<Uint8ClampedArray, JsValue> {
         log::info!("Running inference on the image");
         let start = Instant::now();
 
         let size = width * height;
-        let mut vec = data.to_vec();
+        let input_image = data.to_vec();
         let (mut i_r, mut i_g, mut i_b) = (0usize, size, 2 * size);
         let mut input = vec![0f32; 3 * size];
         for y in 0..height {
             for x in 0..width {
                 let index = (y * width + x) * 4;
-                input[i_r] = vec[index] as f32;
-                input[i_g] = vec[index + 1] as f32;
-                input[i_b] = vec[index + 2] as f32;
+                input[i_b] = input_image[index] as f32;
+                input[i_g] = input_image[index + 1] as f32;
+                input[i_r] = input_image[index + 2] as f32;
                 i_r += 1;
                 i_g += 1;
                 i_b += 1;
@@ -83,19 +84,61 @@ impl StyleTransfer {
             val.clamp(0.0, 255.0) as u8
         }
 
-        let (mut i_r, mut i_g, mut i_b) = (0usize, size, 2 * size);
+        let (mut i_b, mut i_g, mut i_r) = (0usize, size, 2 * size);
+        let mut output_image = vec![0u8; 4 * size];
         for y in 0..height {
             for x in 0..width {
                 let index = (y * width + x) * 4;
-                vec[index] = rgb_float_to_u8(result[i_r]);
-                vec[index + 1] = rgb_float_to_u8(result[i_g]);
-                vec[index + 2] = rgb_float_to_u8(result[i_b]);
+                output_image[index] = rgb_float_to_u8(result[i_r]);
+                output_image[index + 1] = rgb_float_to_u8(result[i_g]);
+                output_image[index + 2] = rgb_float_to_u8(result[i_b]);
+                output_image[index + 3] = input_image[index + 3];
                 i_r += 1;
                 i_g += 1;
                 i_b += 1;
             }
         }
-        data.copy_from(&vec);
+        if preserve_color {
+            for y in 0..height {
+                for x in 0..width {
+                    let index = (y * width + x) * 4;
+                    let dest_gray = 0.299 * output_image[index] as f32
+                        + 0.587 * output_image[index + 1] as f32
+                        + 0.114 * output_image[index + 2] as f32;
+
+                    let (_, cr, cb) = rgb_to_ycrcb(
+                        input_image[index],
+                        input_image[index + 1],
+                        input_image[index + 2],
+                    );
+                    let (r, g, b) = ycrcb_to_rgb(dest_gray, cr, cb);
+
+                    output_image[index] = r.clamp(0.0,255.0).round() as u8;
+                    output_image[index + 1] = g.clamp(0.0,255.0).round() as u8;
+                    output_image[index + 2] = b.clamp(0.0,255.0).round() as u8;
+                }
+            }
+        }
+        data.copy_from(&output_image);
         Ok(data)
     }
+}
+
+fn rgb_to_ycrcb(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
+    let r = r as f32;
+    let g = g as f32;
+    let b = b as f32;
+
+    let y = 0.299 * r + 0.587 * g + 0.114 * b;
+    let cr = (r - y) * 0.713 + 128.0;
+    let cb = (b - y) * 0.564 + 128.0;
+
+    (y, cr, cb)
+}
+
+fn ycrcb_to_rgb(y: f32, cr: f32, cb: f32) -> (f32, f32, f32) {
+    let r = y + 1.403 * (cr - 128.0);
+    let g = y - 0.714 * (cr - 128.0) - 0.344 * (cb - 128.0);
+    let b = y + 1.773 * (cb - 128.0);
+    (r, g, b)
 }

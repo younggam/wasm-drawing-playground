@@ -4,10 +4,10 @@ let styleTransfer;
 wasm.StyleTransfer.new().then(done => styleTransfer = done);
 
 self.onmessage = event => {
-    const {type, styleName, pixels, width, height} = event.data;
+    const {type, styleName, pixels, width, height, preserve} = event.data;
     if (type === 'transfer' && styleTransfer != null) {
         console.log('style transfer start');
-        styleTransfer.inference(nameToModel(styleName), pixels, width, height).then(data => postMessage({
+        styleTransfer.inference(nameToModel(styleName), pixels, width, height, preserve).then(data => postMessage({
             type: 'done',
             pixels: data.buffer,
             width: width,
@@ -17,9 +17,12 @@ self.onmessage = event => {
 };
 
 function nameToModel(styleName) {
-    if (styleName === 'candy') return 0;
-    if (styleName === 'mosaic') return 1;
-    if (styleName === 'rain_princess') return 2;
-    if (styleName === 'udnie') return 3;
+    if (styleName === 'bayanihan') return 0;
+    if (styleName === 'lazy') return 1;
+    if (styleName === 'mosaic') return 2;
+    if (styleName === 'starry') return 3;
+    if (styleName === 'tokyo_ghoul') return 4;
+    if (styleName === 'udnie') return 5;
+    if (styleName === 'wave') return 6;
     return 0;
 }

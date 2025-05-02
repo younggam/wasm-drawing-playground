@@ -1,87 +1,61 @@
 #![cfg_attr(not(test), no_std)]
 extern crate alloc;
 
-use alloc::vec::Vec;
-use burn::nn::{
-    conv::{Conv2d, Conv2dConfig},
-    interpolate::{Interpolate2d, Interpolate2dConfig, InterpolateMode},
-    {InstanceNorm, InstanceNormConfig, Relu},
-};
+use alloc::{vec, vec::Vec};
 use burn::prelude::*;
+use burn::{
+    nn::{
+        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig},
+        {InstanceNorm, InstanceNormConfig},
+    },
+    tensor::activation::relu,
+};
 
 #[derive(Module, Debug)]
-pub struct TransformerNet<B: Backend> {
-    conv1: ConvLayer<B>,
-    in1: InstanceNorm<B>,
-    conv2: ConvLayer<B>,
-    in2: InstanceNorm<B>,
-    conv3: ConvLayer<B>,
-    in3: InstanceNorm<B>,
-    res1: ResidualBlock<B>,
-    res2: ResidualBlock<B>,
-    res3: ResidualBlock<B>,
-    res4: ResidualBlock<B>,
-    res5: ResidualBlock<B>,
-    deconv1: UpsampleConvLayer<B>,
-    in4: InstanceNorm<B>,
-    deconv2: UpsampleConvLayer<B>,
-    in5: InstanceNorm<B>,
-    deconv3: ConvLayer<B>,
-    relu: Relu,
+pub struct TransformerNetwork<B: Backend> {
+    conv_block: Vec<ConvLayer<B>>,
+    residual_block: Vec<ResidualLayer<B>>,
+    deconv0: DeconvLayer<B>,
+    deconv1: DeconvLayer<B>,
+    conv: ConvLayer<B>,
 }
 
-impl<B: Backend> TransformerNet<B> {
+impl<B: Backend> TransformerNetwork<B> {
     pub fn init(device: &B::Device) -> Self {
         Self {
-            conv1: ConvLayer::init(3, 32, 9, 1, device),
-            in1: InstanceNormConfig::new(32).with_affine(true).init(device),
-            conv2: ConvLayer::init(32, 64, 3, 2, device),
-            in2: InstanceNormConfig::new(64).with_affine(true).init(device),
-            conv3: ConvLayer::init(64, 128, 3, 2, device),
-            in3: InstanceNormConfig::new(128).with_affine(true).init(device),
-            res1: ResidualBlock::init(128, device),
-            res2: ResidualBlock::init(128, device),
-            res3: ResidualBlock::init(128, device),
-            res4: ResidualBlock::init(128, device),
-            res5: ResidualBlock::init(128, device),
-            deconv1: UpsampleConvLayer::init(128, 64, 3, 1, Some(2.0), device),
-            in4: InstanceNormConfig::new(64).with_affine(true).init(device),
-            deconv2: UpsampleConvLayer::init(64, 32, 3, 1, Some(2.0), device),
-            in5: InstanceNormConfig::new(32).with_affine(true).init(device),
-            deconv3: ConvLayer::init(32, 3, 9, 1, device),
-            relu: Relu::new(),
+            conv_block: vec![
+                ConvLayer::init(3, 32, 9, 1, true, device),
+                ConvLayer::init(32, 64, 3, 2, true, device),
+                ConvLayer::init(64, 128, 3, 2, true, device),
+            ],
+            residual_block: vec![
+                ResidualLayer::init(128, 3, device),
+                ResidualLayer::init(128, 3, device),
+                ResidualLayer::init(128, 3, device),
+                ResidualLayer::init(128, 3, device),
+                ResidualLayer::init(128, 3, device),
+            ],
+            deconv0: DeconvLayer::init(128, 64, 3, 2, 1, true, device),
+            deconv1: DeconvLayer::init(64, 32, 3, 2, 1, true, device),
+            conv: ConvLayer::init(32, 3, 9, 1, false, device),
         }
     }
 
     pub async fn forward(&self, input: &[f32], width: usize, height: usize) -> Vec<f32> {
-        let input = Tensor::<B, 1>::from_floats(input, &B::Device::default()).reshape([
-            1,
-            3,
-            width,
-            height,
-        ]);
+        let mut input = Tensor::<B, 1>::from_floats(input, &B::Device::default())
+            .reshape([1, 3, height, width]);
 
-        let input = self
-            .relu
-            .forward(self.in1.forward(self.conv1.forward(input)));
-        let input = self
-            .relu
-            .forward(self.in2.forward(self.conv2.forward(input)));
-        let input = self
-            .relu
-            .forward(self.in3.forward(self.conv3.forward(input)));
-        let input = self.res1.forward(input);
-        let input = self.res2.forward(input);
-        let input = self.res3.forward(input);
-        let input = self.res4.forward(input);
-        let input = self.res5.forward(input);
-        let input = self
-            .relu
-            .forward(self.in4.forward(self.deconv1.forward(input)));
-        let input = self
-            .relu
-            .forward(self.in5.forward(self.deconv2.forward(input)));
-        let output = self.deconv3.forward(input);
+        for conv in &self.conv_block {
+            input = relu(conv.forward(input));
+        }
+
+        for res in &self.residual_block {
+            input = res.forward(input)
+        }
+
+        let input = relu(self.deconv0.forward(input));
+        let input = relu(self.deconv1.forward(input));
+        let output = self.conv.forward(input);
 
         output.into_data_async().await.to_vec().unwrap()
     }
@@ -90,7 +64,8 @@ impl<B: Backend> TransformerNet<B> {
 #[derive(Module, Debug)]
 pub struct ConvLayer<B: Backend> {
     reflection_pad: ReflectionPad2d,
-    conv2d: Conv2d<B>,
+    conv_layer: Conv2d<B>,
+    norm_layer: Option<InstanceNorm<B>>,
 }
 
 impl<B: Backend> ConvLayer<B> {
@@ -99,25 +74,40 @@ impl<B: Backend> ConvLayer<B> {
         out_channels: usize,
         kernel_size: usize,
         stride: usize,
+        instance_norm: bool,
         device: &B::Device,
     ) -> Self {
-        let kernel_size = kernel_size / 2;
+        let padding_size = kernel_size / 2;
         Self {
             reflection_pad: ReflectionPad2d::init([
-                kernel_size,
-                kernel_size,
-                kernel_size,
-                kernel_size,
+                padding_size,
+                padding_size,
+                padding_size,
+                padding_size,
             ]),
-            conv2d: Conv2dConfig::new([in_channels, out_channels], [kernel_size, kernel_size])
+            conv_layer: Conv2dConfig::new([in_channels, out_channels], [kernel_size, kernel_size])
                 .with_stride([stride, stride])
                 .init(device),
+            norm_layer: if instance_norm {
+                Some(
+                    InstanceNormConfig::new(out_channels)
+                        .with_affine(true)
+                        .init(device),
+                )
+            } else {
+                None
+            },
         }
     }
 
     pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
-        let padded = self.reflection_pad.forward(input);
-        self.conv2d.forward(padded)
+        let input = self.reflection_pad.forward(input);
+        let input = self.conv_layer.forward(input);
+        if let Some(norm_layer) = &self.norm_layer {
+            norm_layer.forward(input)
+        } else {
+            input
+        }
     }
 }
 
@@ -139,10 +129,7 @@ impl ReflectionPad2d {
         let w = shape.dims[3];
 
         let left = input.clone().slice(s![.., .., .., 0..pl]).flip([3]);
-        let right = input
-            .clone()
-            .slice(s![.., .., .., (w - pr)..w])
-            .flip([3]);
+        let right = input.clone().slice(s![.., .., .., (w - pr)..w]).flip([3]);
         let padded_w = Tensor::cat(Vec::from([left, input, right]), 3);
 
         let top = padded_w.clone().slice(s![.., .., 0..pt, ..]).flip([2]);
@@ -156,101 +143,70 @@ impl ReflectionPad2d {
 }
 
 #[derive(Module, Debug)]
-pub struct ResidualBlock<B: Backend> {
+pub struct ResidualLayer<B: Backend> {
     conv1: ConvLayer<B>,
-    in1: InstanceNorm<B>,
     conv2: ConvLayer<B>,
-    in2: InstanceNorm<B>,
-    relu: Relu,
 }
 
-impl<B: Backend> ResidualBlock<B> {
-    pub fn init(channels: usize, device: &B::Device) -> Self {
+impl<B: Backend> ResidualLayer<B> {
+    pub fn init(channels: usize, kernel_size: usize, device: &B::Device) -> Self {
         Self {
-            conv1: ConvLayer::init(channels, channels, 3, 1, device),
-            in1: InstanceNormConfig::new(channels)
-                .with_affine(true)
-                .init(device),
-            conv2: ConvLayer::init(channels, channels, 3, 1, device),
-            in2: InstanceNormConfig::new(channels)
-                .with_affine(true)
-                .init(device),
-            relu: Relu::new(),
+            conv1: ConvLayer::init(channels, channels, kernel_size, 1, true, device),
+            conv2: ConvLayer::init(channels, channels, kernel_size, 1, true, device),
         }
     }
 
     pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
-        let residual = input.clone();
-        let out = self
-            .relu
-            .forward(self.in1.forward(self.conv1.forward(input)));
-        self.in2.forward(self.conv2.forward(out)) + residual
+        let identity = input.clone();
+        let out = relu(self.conv1.forward(input));
+        self.conv2.forward(out) + identity
     }
 }
 
 #[derive(Module, Debug)]
-pub struct UpsampleConvLayer<B: Backend> {
-    interpolate2d: Option<Interpolate2d>,
-    reflection_pad: ReflectionPad2d,
-    conv2d: Conv2d<B>,
+pub struct DeconvLayer<B: Backend> {
+    conv_transpose: ConvTranspose2d<B>,
+    norm_layer: Option<InstanceNorm<B>>,
 }
 
-impl<B: Backend> UpsampleConvLayer<B> {
+impl<B: Backend> DeconvLayer<B> {
     pub fn init(
         in_channels: usize,
         out_channels: usize,
         kernel_size: usize,
         stride: usize,
-        upsample: Option<f32>,
+        output_padding: usize,
+        instance_norm: bool,
         device: &B::Device,
     ) -> Self {
-        let kernel_size = kernel_size / 2;
+        let padding_size = kernel_size / 2;
         Self {
-            interpolate2d: upsample.map(|scale_factor| {
-                Interpolate2dConfig::new()
-                    .with_mode(InterpolateMode::Nearest)
-                    .with_scale_factor(Some([scale_factor, scale_factor]))
-                    .init()
-            }),
-            reflection_pad: ReflectionPad2d::init([
-                kernel_size,
-                kernel_size,
-                kernel_size,
-                kernel_size,
-            ]),
-            conv2d: Conv2dConfig::new([in_channels, out_channels], [kernel_size, kernel_size])
-                .with_stride([stride, stride])
-                .init(device),
+            conv_transpose: ConvTranspose2dConfig::new(
+                [in_channels, out_channels],
+                [kernel_size, kernel_size],
+            )
+            .with_stride([stride, stride])
+            .with_padding([padding_size, padding_size])
+            .with_padding_out([output_padding, output_padding])
+            .init(device),
+            norm_layer: if instance_norm {
+                Some(
+                    InstanceNormConfig::new(out_channels)
+                        .with_affine(true)
+                        .init(device),
+                )
+            } else {
+                None
+            },
         }
     }
 
     pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
-        let input = if let Some(interpolate2d) = &self.interpolate2d {
-            interpolate2d.forward(input)
+        let input = self.conv_transpose.forward(input);
+        if let Some(norm_layer) = &self.norm_layer {
+            norm_layer.forward(input)
         } else {
             input
-        };
-        self.conv2d.forward(self.reflection_pad.forward(input))
+        }
     }
-}
-
-#[derive(Module, Debug)]
-pub struct What<B: Backend> {
-    conv1: ConvLayer<B>,
-    in1: InstanceNorm<B>,
-    conv2: ConvLayer<B>,
-    in2: InstanceNorm<B>,
-    conv3: ConvLayer<B>,
-    in3: InstanceNorm<B>,
-    res1: ResidualBlock<B>,
-    res2: ResidualBlock<B>,
-    res3: ResidualBlock<B>,
-    res4: ResidualBlock<B>,
-    res5: ResidualBlock<B>,
-    deconv1: UpsampleConvLayer<B>,
-    in4: InstanceNorm<B>,
-    deconv2: UpsampleConvLayer<B>,
-    in5: InstanceNorm<B>,
-    deconv3: ConvLayer<B>,
-    relu: Relu,
 }
