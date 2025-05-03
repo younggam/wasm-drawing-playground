@@ -42,6 +42,10 @@
                     <img src="icons/eraser.svg" alt="">
                     <span>Eraser</span>
                 </li>
+                <li class="option tool" id="fill">
+                    <img src="icons/fill.svg" alt="">
+                    <span>Fill</span>
+                </li>
                 <li class="option">
                     <input type="range" id="size-slider" min="1" max="30" value="5">
                 </li>
@@ -49,14 +53,38 @@
         </div>
         <div class="row">
             <label class="title">Colors</label>
-            <ul class="colors">
+            <ul class="colors" id="color-list-0">
+                <li class="option selected"></li>
                 <li class="option"></li>
-                <li class="option active"></li>
                 <li class="option"></li>
                 <li class="option"></li>
-                <li class="option">
-                    <input type="color" id="color-picker" value="#4A98F7">
-                </li>
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+            </ul>
+            <ul class="colors" id="color-list-1">
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+            </ul>
+            <div class="color-picker">
+                <input type="color" id="color-picker" value="#000000">
+            </div>
+            <ul class="colors" id="color-list-2">
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
+                <li class="option"></li>
             </ul>
         </div>
         <div class="row buttons">
@@ -101,6 +129,12 @@
             <input class="upload-img" type="file" id="imageInput" accept="image/*">
             <button class="convert-img">Convert Image</button>
             <button class="save-img">Save As Image</button>
+            <div class="size-input">
+                <input type="number" id="widthInput" value="512" min="16">
+                <label>x</label>
+                <input type="number" id="heightInput" value="512" min="16">
+            </div>
+            <button class="resize-canvas">Resize Canvas</button>
         </div>
     </section>
 </div>
