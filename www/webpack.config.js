@@ -17,6 +17,7 @@ module.exports = {
             [
                 "index.html",
                 "icons/*.svg",
+                "icons/*.png",
                 "background.png",
                 "manifest.json",
                 "background.js",

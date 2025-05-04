@@ -4,6 +4,7 @@
   "version": "1.0",
   "description": "WASM based fast neural style transfer with burn.",
   "icons": {
+    "128": "icons/logo128.png"
   },
   "action": {
     "default_title": "Open Style Transfer Tool"
@@ -24,7 +25,9 @@
       ]
     }
   ],
-  "permissions": ["tabs"],
+  "permissions": [
+    "tabs"
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
   }
