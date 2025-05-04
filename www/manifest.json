@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "WASM Style Transfer",
+  "name": "Drawing & Art Style Transfer",
   "version": "1.0",
-  "description": "AI 스타일 전환 도구 (WASM 기반)",
+  "description": "WASM based fast neural style transfer with burn.",
   "icons": {
   },
   "action": {
