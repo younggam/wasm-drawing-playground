@@ -1,4 +1,6 @@
-const worker = new Worker(new URL('./worker.js', import.meta.url));
+const worker = new Worker(new URL('./worker.js', import.meta.url), {
+    type: "module"
+});
 
 // global variables with default value
 const canvas = document.querySelector("canvas"),
@@ -133,7 +135,6 @@ function floodFill(startX, startY) {
     const height = imageData.height;
     const rgb = selectedColor.replace(/[^\d,]/g, '').split(',');
     const color = [parseInt(rgb[0]), parseInt(rgb[1]), parseInt(rgb[2])];
-    console.log(color);
 
     const startPos = (startY * width + startX) * 4;
     const startColor = data.slice(startPos, startPos + 4);

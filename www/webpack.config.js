@@ -10,16 +10,18 @@ module.exports = {
         path: path.resolve(__dirname, "dist"),
         filename: "bootstrap.js",
     },
-    mode: "development",
-    module: {
-        rules: [
-            {
-                test: /\.css$/i,
-                use: ['style-loader', 'css-loader'],
-            }
-        ],
-    },
+    devtool: "source-map",
+    mode: "production",
     plugins: [
-        new CopyWebpackPlugin(['index.html', 'icons/*.svg','background.png'])
+        new CopyWebpackPlugin(
+            [
+                "index.html",
+                "icons/*.svg",
+                "background.png",
+                "manifest.json",
+                "background.js",
+                "style.css",
+            ]
+        )
     ],
 };

@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "WASM Style Transfer",
+  "version": "1.0",
+  "description": "AI 스타일 전환 도구 (WASM 기반)",
+  "icons": {
+  },
+  "action": {
+    "default_title": "Open Style Transfer Tool"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*.svg",
+        "*.png",
+        "*.wasm",
+        "*.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "permissions": ["tabs"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  }
+}

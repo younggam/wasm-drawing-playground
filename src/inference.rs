@@ -54,14 +54,14 @@ impl StyleTransfer {
 
         let size = width * height;
         let input_image = data.to_vec();
-        let (mut i_r, mut i_g, mut i_b) = (0usize, size, 2 * size);
+        let (mut i_b, mut i_g, mut i_r) = (0usize, size, 2 * size);
         let mut input = vec![0f32; 3 * size];
         for y in 0..height {
             for x in 0..width {
                 let index = (y * width + x) * 4;
-                input[i_b] = input_image[index] as f32;
+                input[i_r] = input_image[index] as f32;
                 input[i_g] = input_image[index + 1] as f32;
-                input[i_r] = input_image[index + 2] as f32;
+                input[i_b] = input_image[index + 2] as f32;
                 i_r += 1;
                 i_g += 1;
                 i_b += 1;

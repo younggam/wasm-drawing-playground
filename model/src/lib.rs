@@ -8,7 +8,7 @@ use burn::{
         conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig},
         {InstanceNorm, InstanceNormConfig},
     },
-    tensor::activation::relu,
+    tensor::{activation::relu, module::conv_transpose2d, ops::ConvTransposeOptions},
 };
 
 #[derive(Module, Debug)]
@@ -45,16 +45,18 @@ impl<B: Backend> TransformerNetwork<B> {
         let mut input = Tensor::<B, 1>::from_floats(input, &B::Device::default())
             .reshape([1, 3, height, width]);
 
-        for conv in &self.conv_block {
-            input = relu(conv.forward(input));
-        }
+        input = relu(self.conv_block[0].forward(input));
+        let dims_0 = input.dims();
+        input = relu(self.conv_block[1].forward(input));
+        let dims_1 = input.dims();
+        input = relu(self.conv_block[2].forward(input));
 
         for res in &self.residual_block {
             input = res.forward(input)
         }
 
-        let input = relu(self.deconv0.forward(input));
-        let input = relu(self.deconv1.forward(input));
+        let input = relu(self.deconv0.forward(input, dims_1));
+        let input = relu(self.deconv1.forward(input, dims_0));
         let output = self.conv.forward(input);
 
         output.into_data_async().await.to_vec().unwrap()
@@ -201,8 +203,23 @@ impl<B: Backend> DeconvLayer<B> {
         }
     }
 
-    pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
-        let input = self.conv_transpose.forward(input);
+    pub fn forward(&self, input: Tensor<B, 4>, original_dims: [usize; 4]) -> Tensor<B, 4> {
+        let [_, _, h, w] = original_dims;
+        let mut padding_out = self.conv_transpose.padding_out;
+        padding_out[0] -= h % 2;
+        padding_out[1] -= w % 2;
+        let input = conv_transpose2d(
+            input,
+            self.conv_transpose.weight.val(),
+            self.conv_transpose.bias.as_ref().map(|b| b.val()),
+            ConvTransposeOptions::new(
+                self.conv_transpose.stride,
+                self.conv_transpose.padding,
+                padding_out,
+                self.conv_transpose.dilation,
+                self.conv_transpose.groups,
+            ),
+        );
         if let Some(norm_layer) = &self.norm_layer {
             norm_layer.forward(input)
         } else {
