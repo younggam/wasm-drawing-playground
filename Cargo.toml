@@ -32,7 +32,7 @@ wasm-bindgen-test = "0.3.50"
 
 [build-dependencies]
 model = { path = "./model" }
-burn-import = { version = "0.17.0", default-features = false, features = ["pytorch"] }
+burn-import = { version = "0.18.0", default-features = false, features = ["pytorch"] }
 burn = { version = "0.17.0", default-features = false, features = ["ndarray", "wgpu"] }
 
 [profile.release]
