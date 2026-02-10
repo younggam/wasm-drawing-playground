@@ -19,7 +19,7 @@ wasm-bindgen-futures = "0.4.5"
 web-time = "1.1.0"
 log = "0.4.27"
 wasm-logger = "0.2.0"
-getrandom = { version = "0.3.2", default-features = false, features = ["wasm_js"] }
+getrandom = { version = "0.4.1", default-features = false, features = ["wasm_js"] }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
